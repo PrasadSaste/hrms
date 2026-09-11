@@ -1,0 +1,1558 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+
+@theme {
+    /* System font stack: no external font fetch, so the app renders offline. */
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+        Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
+
+    --color-brand-50: oklch(0.97 0.014 254);
+    --color-brand-100: oklch(0.93 0.032 254);
+    --color-brand-200: oklch(0.88 0.059 254);
+    --color-brand-300: oklch(0.81 0.093 254);
+    --color-brand-400: oklch(0.71 0.143 254);
+    --color-brand-500: oklch(0.62 0.184 258);
+    --color-brand-600: oklch(0.54 0.196 262);
+    --color-brand-700: oklch(0.47 0.178 264);
+    --color-brand-800: oklch(0.41 0.146 265);
+    --color-brand-900: oklch(0.37 0.118 265);
+
+    /* Secondary. Supporting surfaces, the tinted background, a second series. */
+    --color-accent-50: oklch(0.97 0.015 183);
+    --color-accent-100: oklch(0.94 0.035 183);
+    --color-accent-200: oklch(0.89 0.062 183);
+    --color-accent-300: oklch(0.82 0.093 183);
+    --color-accent-400: oklch(0.73 0.117 183);
+    --color-accent-500: oklch(0.64 0.114 182);
+    --color-accent-600: oklch(0.56 0.099 182);
+    --color-accent-700: oklch(0.48 0.084 182);
+    --color-accent-800: oklch(0.41 0.070 182);
+    --color-accent-900: oklch(0.36 0.059 182);
+
+    /* Tertiary. Highlights that are neither an action nor a status. */
+    --color-tertiary-50: oklch(0.98 0.021 84);
+    --color-tertiary-100: oklch(0.95 0.049 84);
+    --color-tertiary-200: oklch(0.90 0.089 84);
+    --color-tertiary-300: oklch(0.85 0.126 82);
+    --color-tertiary-400: oklch(0.80 0.155 76);
+    --color-tertiary-500: oklch(0.76 0.166 70);
+    --color-tertiary-600: oklch(0.70 0.158 62);
+    --color-tertiary-700: oklch(0.61 0.137 57);
+    --color-tertiary-800: oklch(0.51 0.113 55);
+    --color-tertiary-900: oklch(0.44 0.094 54);
+}
+
+/*
+    The shell's own colours, re-declared per request by BrandPalette. They are
+    given fallbacks here so a page rendered before the settings are read — the
+    sign-in screen on a fresh install — still draws correctly.
+*/
+:root {
+    --surface-app: var(--color-slate-100);
+    --surface-nav: #ffffff;
+    --surface-nav-border: var(--color-slate-200);
+    --surface-nav-text: var(--color-slate-600);
+    --surface-nav-muted: var(--color-slate-400);
+    --surface-nav-icon: var(--color-slate-400);
+    --surface-nav-hover: var(--color-slate-100);
+    --surface-nav-active: var(--color-brand-50);
+    --surface-nav-active-text: var(--color-brand-700);
+    --surface-nav-active-icon: var(--color-brand-600);
+    --surface-topbar: #ffffff;
+}
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        @apply text-slate-800 antialiased;
+        background-color: var(--surface-app);
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    /*
+        Charts.
+
+        The series colours are fixed, not derived from the installation's brand
+        colour. An administrator may pick any colour they like, and a pair
+        chosen at runtime cannot be checked for the separation two series need;
+        these three are the validated slots, in a fixed order, and a fourth
+        series folds into "Other" rather than inventing a hue.
+
+        Status colours are reserved and never used as a series. Approved-green
+        against rejected-red is 4.1 apart under deuteranopia — unreadable by
+        hue alone — so every status ships an icon and a written label beside its
+        count, and the colour is the last channel rather than the only one.
+    */
+    .chart {
+        --chart-surface: #fff;
+        --chart-s1: #2a78d6;
+        --chart-s2: #eb6834;
+        --chart-s3: #1baf7a;
+        --chart-brand: var(--color-brand-600);
+        --chart-good: #0ca30c;
+        --chart-warning: #fab219;
+        --chart-critical: #d03b3b;
+        --chart-neutral: var(--color-slate-300);
+        --chart-axis: var(--color-slate-200);
+    }
+
+    /* ---------------------------------------------------------- columns --- */
+    .chart__plot {
+        display: flex;
+        align-items: stretch;
+        gap: 3px;
+    }
+
+    .chart__slot {
+        position: relative;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.375rem;
+        min-width: 0;
+        border-radius: 0.25rem;
+    }
+
+    .chart__slot:focus-visible {
+        outline: 2px solid var(--color-brand-600);
+        outline-offset: 2px;
+    }
+
+    .chart__column-track {
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        width: 100%;
+        flex: 1;
+    }
+
+    .chart__column {
+        width: 100%;
+        /* Capped, so a wide chart does not turn into blocks of colour. */
+        max-width: 24px;
+        /* Rounded where the data ends, square where it meets the baseline. */
+        border-radius: 4px 4px 0 0;
+        background: var(--chart-brand);
+        transition: opacity 120ms ease;
+    }
+
+    .chart__column--s1 { background: var(--chart-s1); }
+    .chart__column--s2 { background: var(--chart-s2); }
+
+    .chart__slot:hover .chart__column,
+    .chart__slot:focus-visible .chart__column {
+        opacity: 0.78;
+    }
+
+    /* The one value that rides the chart. Every other one is in the tooltip
+       and the table; a number on each column goes unread. */
+    .chart__peak {
+        position: absolute;
+        top: -1.05rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: var(--color-slate-600);
+    }
+
+    .chart__tick {
+        font-size: 0.625rem;
+        white-space: nowrap;
+        color: var(--color-slate-400);
+    }
+
+    /* ------------------------------------------------------------ bars --- */
+    .chart--bars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+    }
+
+    .chart__bar-row {
+        display: grid;
+        grid-template-columns: minmax(5rem, 9rem) 1fr auto;
+        align-items: center;
+        gap: 0.625rem;
+        border-radius: 0.25rem;
+    }
+
+    .chart__bar-row:focus-visible {
+        outline: 2px solid var(--color-brand-600);
+        outline-offset: 2px;
+    }
+
+    .chart__bar-label {
+        font-size: 0.8125rem;
+        color: var(--color-slate-600);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .chart__bar-track {
+        display: block;
+        height: 0.5rem;
+        border-radius: 9999px;
+        background: var(--color-slate-100);
+    }
+
+    .chart__bar {
+        display: block;
+        height: 100%;
+        border-radius: 9999px;
+        background: var(--chart-brand);
+    }
+
+    .chart__bar--s1 { background: var(--chart-s1); }
+    .chart__bar--s3 { background: var(--chart-s3); }
+
+    /* Always shown, never left to the reader to judge against a gridline —
+       and the relief the contrast warning asks for on the lighter series. */
+    .chart__bar-value {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--color-slate-900);
+    }
+
+    /* ----------------------------------------------------------- trend --- */
+    .chart__trend-plot {
+        position: relative;
+    }
+
+    .chart--trend svg {
+        display: block;
+        width: 100%;
+        height: 9rem;
+        overflow: visible;
+    }
+
+    .chart__axis {
+        stroke: var(--chart-axis);
+        stroke-width: 1;
+    }
+
+    .chart__line {
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .chart__line--s1 { stroke: var(--chart-s1); }
+    .chart__line--s2 { stroke: var(--chart-s2); }
+
+    /* A 2px ring in the surface colour, so an end dot stays legible where the
+       two lines cross. */
+    .chart__dot {
+        stroke: var(--chart-surface);
+        stroke-width: 2;
+        paint-order: stroke;
+    }
+
+    .chart__dot--s1 { fill: var(--chart-s1); }
+    .chart__dot--s2 { fill: var(--chart-s2); }
+
+    .chart__hits {
+        position: absolute;
+        inset: 0;
+        display: flex;
+    }
+
+    .chart__hit {
+        position: relative;
+        flex: 1;
+        border-radius: 0.25rem;
+    }
+
+    .chart__hit:hover,
+    .chart__hit:focus-visible {
+        background: color-mix(in oklab, var(--color-slate-400) 12%, transparent);
+        outline: none;
+    }
+
+    .chart__trend-ticks {
+        display: flex;
+        margin-top: 0.375rem;
+    }
+
+    .chart__trend-ticks span {
+        flex: 1;
+        text-align: center;
+        font-size: 0.625rem;
+        white-space: nowrap;
+        color: var(--color-slate-400);
+    }
+
+    /* ---------------------------------------------------------- status --- */
+    .chart__stack {
+        display: flex;
+        /* The 2px surface gap is what separates the segments. No borders: a
+           stroke would add ink that is not data. */
+        gap: 2px;
+        height: 0.625rem;
+        overflow: hidden;
+        border-radius: 9999px;
+    }
+
+    .chart__stack-part {
+        display: block;
+        border-radius: 9999px;
+    }
+
+    .chart__stack-part--good { background: var(--chart-good); }
+    .chart__stack-part--warning { background: var(--chart-warning); }
+    .chart__stack-part--critical { background: var(--chart-critical); }
+    .chart__stack-part--neutral { background: var(--chart-neutral); }
+
+    .chart__status-key {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.375rem 1rem;
+        margin: 0.875rem 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.8125rem;
+    }
+
+    .chart__status-key li {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        color: var(--color-slate-600);
+    }
+
+    .chart__status-key b {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--color-slate-900);
+    }
+
+    .chart__status-icon {
+        width: 0.875rem;
+        height: 0.875rem;
+        flex: none;
+    }
+
+    .chart__status-icon--good { color: var(--chart-good); }
+    .chart__status-icon--warning { color: #b06e00; }
+    .chart__status-icon--critical { color: var(--chart-critical); }
+    .chart__status-icon--neutral { color: var(--color-slate-400); }
+
+    /* ---------------------------------------------------------- legend --- */
+    .chart__legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 1rem;
+        margin: 0 0 0.75rem;
+        padding: 0;
+        list-style: none;
+        font-size: 0.75rem;
+        color: var(--color-slate-600);
+    }
+
+    .chart__legend li {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+
+    .chart__swatch {
+        width: 0.625rem;
+        height: 0.625rem;
+        flex: none;
+        border-radius: 2px;
+    }
+
+    .chart__swatch--s1 { background: var(--chart-s1); }
+    .chart__swatch--s2 { background: var(--chart-s2); }
+    .chart__swatch--s3 { background: var(--chart-s3); }
+
+    /* --------------------------------------------------------- tooltip --- */
+    .chart__tip {
+        position: absolute;
+        bottom: calc(100% + 0.375rem);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        display: none;
+        min-width: max-content;
+        max-width: 14rem;
+        padding: 0.375rem 0.5rem;
+        border-radius: 0.5rem;
+        background: var(--color-slate-900);
+        color: #fff;
+        font-size: 0.75rem;
+        line-height: 1.35;
+        text-align: left;
+        pointer-events: none;
+    }
+
+    .chart__tip strong {
+        display: block;
+        font-weight: 600;
+    }
+
+    .chart__tip-row {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+
+    .chart__slot:hover .chart__tip,
+    .chart__slot:focus-visible .chart__tip,
+    .chart__hit:hover .chart__tip,
+    .chart__hit:focus-visible .chart__tip {
+        display: block;
+    }
+
+    /* ------------------------------------------------------ table view --- */
+    .chart__table {
+        margin-top: 0.875rem;
+        font-size: 0.75rem;
+    }
+
+    .chart__table summary {
+        cursor: pointer;
+        color: var(--color-slate-500);
+    }
+
+    .chart__table summary:hover {
+        color: var(--color-slate-700);
+    }
+
+    .chart__table table {
+        width: 100%;
+        margin-top: 0.5rem;
+        border-collapse: collapse;
+    }
+
+    .chart__table th,
+    .chart__table td {
+        padding: 0.25rem 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid var(--color-slate-100);
+    }
+
+    .chart__table td {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .chart__table thead th {
+        color: var(--color-slate-500);
+        font-weight: 500;
+    }
+
+    .chart__empty {
+        margin: 0;
+        font-size: 0.8125rem;
+        color: var(--color-slate-400);
+    }
+
+    /*
+        The bar a form is submitted from.
+
+        `position: sticky; bottom: 0` does the work: while there is still form
+        below it, it floats at the bottom of the screen; once the end of the
+        form scrolls into view it settles there. A two-screen form therefore
+        never hides its own Save button, and a short one looks exactly as it
+        did before.
+    */
+    .form-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
+        margin-top: 1.5rem;
+        padding: 0.875rem 0;
+        border-top: 1px solid var(--color-slate-200);
+        /* Translucent so it reads as floating above the form rather than
+           cutting it off, with a solid fallback where blur is unsupported. */
+        background: #fff;
+        background: color-mix(in oklab, #fff 92%, transparent);
+        backdrop-filter: blur(8px);
+    }
+
+    .form-actions__inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .form-actions--end .form-actions__inner {
+        justify-content: flex-end;
+    }
+
+    .form-actions__buttons {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-actions__note {
+        margin: 0;
+        font-size: 0.75rem;
+        color: var(--color-slate-500);
+    }
+
+    @media (min-width: 640px) {
+        .form-actions__note {
+            margin-left: auto;
+            text-align: right;
+        }
+    }
+
+    /* Only while it is actually floating, so a settled bar stays flat. */
+    .form-actions.is-stuck {
+        box-shadow: 0 -8px 20px -14px rgb(15 23 42 / 0.45);
+    }
+
+    /*
+        On a phone the bar spans the full width of the screen rather than the
+        content column, so a thumb reaches Save without aiming.
+    */
+    @media (max-width: 639px) {
+        .form-actions {
+            margin-left: -1rem;
+            margin-right: -1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .form-actions__buttons > * {
+            flex: 1 1 auto;
+        }
+    }
+
+    /*
+        The toaster.
+
+        Written as real CSS rather than utility classes because the toasts are
+        built in JavaScript, and a class that only ever appears in a .js file is
+        a class Tailwind has no reason to keep. Semantic names also mean the
+        markup in toast.js stays readable.
+    */
+    .hrms-toaster {
+        position: fixed;
+        z-index: 90;
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+        /* Below the top bar on a phone, and never wider than the screen. */
+        inset: 4.5rem 0.75rem auto 0.75rem;
+        pointer-events: none;
+    }
+
+    @media (min-width: 640px) {
+        .hrms-toaster {
+            inset: 1rem 1rem auto auto;
+            width: 24rem;
+            max-width: calc(100vw - 2rem);
+        }
+    }
+
+    .hrms-toast {
+        pointer-events: auto;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.625rem;
+        padding: 0.75rem 0.875rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--color-slate-200);
+        background: #fff;
+        box-shadow:
+            0 10px 15px -3px rgb(0 0 0 / 0.08),
+            0 4px 6px -4px rgb(0 0 0 / 0.08);
+        font-size: 0.875rem;
+        line-height: 1.4;
+        color: var(--color-slate-700);
+        animation: hrms-toast-in 180ms ease-out;
+    }
+
+    .hrms-toast.is-leaving {
+        animation: hrms-toast-out 160ms ease-in forwards;
+        /* On its way out and no longer answerable: a fading question must not
+           swallow a click meant for the one that replaced it. */
+        pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .hrms-toast,
+        .hrms-toast.is-leaving {
+            animation: none;
+        }
+    }
+
+    .hrms-toast__icon {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.0625rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .hrms-toast__body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /*
+        "Success:" and the rest, for a screen reader only. Colour alone must
+        not be what tells somebody whether a message is good news.
+    */
+    .hrms-toast__type {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border-width: 0;
+    }
+
+    .hrms-toast__title {
+        margin: 0 0 0.125rem;
+        font-weight: 600;
+        color: var(--color-slate-900);
+    }
+
+    .hrms-toast__message {
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .hrms-toast__list {
+        margin: 0.375rem 0 0;
+        padding-left: 1.1rem;
+        list-style: disc;
+        max-height: 11rem;
+        overflow-y: auto;
+        font-size: 0.8125rem;
+        color: var(--color-slate-600);
+    }
+
+    .hrms-toast__list li + li {
+        margin-top: 0.125rem;
+    }
+
+    .hrms-toast__count {
+        flex: none;
+        align-self: center;
+        padding: 0.0625rem 0.375rem;
+        border-radius: 9999px;
+        background: var(--color-slate-100);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: var(--color-slate-600);
+    }
+
+    .hrms-toast__close {
+        flex: none;
+        margin: -0.125rem -0.25rem 0 0;
+        padding: 0 0.25rem;
+        border: 0;
+        background: none;
+        font-size: 1.125rem;
+        line-height: 1;
+        color: var(--color-slate-400);
+        cursor: pointer;
+        border-radius: 0.25rem;
+    }
+
+    .hrms-toast__close:hover {
+        color: var(--color-slate-700);
+    }
+
+    .hrms-toast__close:focus-visible,
+    .hrms-toast__action:focus-visible {
+        outline: 2px solid var(--color-brand-600);
+        outline-offset: 2px;
+    }
+
+    .hrms-toast--success { border-color: var(--color-emerald-200); }
+    .hrms-toast--success .hrms-toast__icon { background: var(--color-emerald-600); }
+
+    .hrms-toast--error { border-color: var(--color-rose-200); }
+    .hrms-toast--error .hrms-toast__icon { background: var(--color-rose-600); }
+
+    .hrms-toast--warning { border-color: var(--color-amber-200); }
+    .hrms-toast--warning .hrms-toast__icon { background: var(--color-amber-500); }
+
+    .hrms-toast--info { border-color: var(--color-sky-200); }
+    .hrms-toast--info .hrms-toast__icon { background: var(--color-sky-600); }
+
+    /* A question, not an announcement: heavier, and it never times out. */
+    .hrms-toast--confirm {
+        border-color: var(--color-slate-300);
+        box-shadow:
+            0 20px 25px -5px rgb(0 0 0 / 0.12),
+            0 8px 10px -6px rgb(0 0 0 / 0.12);
+    }
+
+    .hrms-toast--confirm .hrms-toast__icon {
+        background: var(--color-slate-700);
+    }
+
+    .hrms-toast__actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.625rem;
+    }
+
+    .hrms-toast__action {
+        padding: 0.3125rem 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid transparent;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .hrms-toast__action--confirm {
+        background: var(--color-rose-600);
+        color: #fff;
+    }
+
+    .hrms-toast__action--confirm:hover {
+        background: var(--color-rose-700);
+    }
+
+    .hrms-toast__action--cancel {
+        background: #fff;
+        border-color: var(--color-slate-300);
+        color: var(--color-slate-700);
+    }
+
+    .hrms-toast__action--cancel:hover {
+        background: var(--color-slate-50);
+    }
+
+    @keyframes hrms-toast-in {
+        from { opacity: 0; transform: translateY(-0.5rem) scale(0.98); }
+        to { opacity: 1; transform: none; }
+    }
+
+    @keyframes hrms-toast-out {
+        from { opacity: 1; transform: none; }
+        to { opacity: 0; transform: translateY(-0.375rem) scale(0.98); }
+    }
+
+
+    /*
+        Navigation links. The colours themselves are inline theme variables, so
+        only the hover states live here — a class cannot know whether the
+        column behind it is light or dark, but the variables do.
+    */
+    .nav-link:not(.is-active):hover {
+        background-color: var(--surface-nav-hover);
+    }
+
+    .nav-link:not(.is-active):hover .nav-link-icon {
+        color: var(--surface-nav-text);
+    }
+
+    .nav-link.is-locked:hover {
+        background-color: var(--surface-nav-hover);
+    }
+
+    /*
+     * The active row carries a bar down its left edge. A tint alone is easy to
+     * miss in a column of twenty items; a rule against the edge is not, and it
+     * reads the same whether the column is light or dark.
+     */
+    .nav-link {
+        position: relative;
+    }
+
+    .nav-link.is-active::before {
+        content: '';
+        position: absolute;
+        left: -0.625rem;
+        top: 0.25rem;
+        bottom: 0.25rem;
+        width: 3px;
+        border-radius: 0 2px 2px 0;
+        background: var(--surface-nav-active-icon);
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        @apply block w-full rounded-md border-slate-300 bg-white text-[13px] text-slate-900
+               transition placeholder:text-slate-400
+               focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-hidden
+               disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
+        border-width: 1px;
+        padding: 0.4375rem 0.625rem;
+    }
+
+    .form-select {
+        padding-right: 2.25rem;
+    }
+
+    .form-checkbox {
+        @apply size-4 rounded-sm border-slate-300 text-brand-600
+               focus:ring-2 focus:ring-brand-500/40 focus:outline-hidden;
+    }
+
+    .form-label {
+        @apply mb-1 block text-[12px] font-semibold text-slate-600;
+    }
+
+    .form-help {
+        @apply mt-1 text-[11.5px] text-slate-500;
+    }
+
+    .form-error {
+        @apply mt-1 text-xs font-medium text-rose-600;
+    }
+
+    /*
+     * Panels, not floating cards. Square-ish and led by their border rather
+     * than a shadow, so a screen full of them reads as one instrument with
+     * sections instead of a scattering of tiles.
+     */
+    .card {
+        @apply rounded-md border border-slate-200 bg-white;
+    }
+
+    .card-header {
+        @apply flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5;
+        background: color-mix(in oklab, var(--color-slate-100) 55%, #ffffff);
+    }
+
+    .card-title {
+        @apply text-[13px] font-semibold text-slate-800;
+    }
+
+    .card-body {
+        @apply p-4;
+    }
+
+    /*
+     * A section label. Small caps and letterspaced, the way a form on paper
+     * names its parts — used for card titles, strip labels and column groups,
+     * and the one typographic move that stops the whole thing reading as a
+     * default component library.
+     */
+    /*
+     * A link in running text.
+     *
+     * Two problems, one class. The colour is `--color-brand-ink` rather than
+     * the 600, because the 600 is chosen to be pressed and a teal or a yellow
+     * one cannot be read as small text — see `BrandPalette::ink()`. And it is
+     * underlined, because a very dark brand clears contrast easily but then
+     * measures barely a fifth of a stop from the body text beside it: legible,
+     * and not recognisable as a link at all. Colour is never the only signal.
+     */
+    .link {
+        color: var(--color-brand-ink, var(--color-brand-700));
+        text-decoration-line: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 2px;
+        text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+        transition: text-decoration-color 0.15s;
+    }
+
+    .link:hover {
+        text-decoration-color: currentColor;
+    }
+
+    /*
+     * A row title that turns brand when pointed at. Same reasoning as `.link`:
+     * the hover colour has to be the readable ink, or a pale brand makes the
+     * text harder to read at the exact moment somebody is aiming at it.
+     */
+    .hover-ink:hover {
+        color: var(--color-brand-ink, var(--color-brand-700));
+    }
+
+    /* Where the surrounding design already says "clickable" — a row of
+       actions, a card that is itself a button — the rule would be noise. */
+    .link-plain {
+        color: var(--color-brand-ink, var(--color-brand-700));
+    }
+
+    .link-plain:hover {
+        text-decoration-line: underline;
+        text-underline-offset: 2px;
+    }
+
+    .eyebrow {
+        @apply text-[10.5px] font-semibold text-slate-500 uppercase;
+        letter-spacing: 0.07em;
+    }
+
+    /*
+     * The band at the top of every page: breadcrumb, title, facts, actions,
+     * and the record's tabs docked to its lower edge. It spans the content
+     * area rather than floating in it, and carries a brand hairline along its
+     * top so every screen is stamped with the organisation's colour.
+     */
+    .page-chrome {
+        @apply -mx-4 mb-5 border-b border-slate-200 bg-white px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8;
+        margin-top: -1.5rem;
+        border-top: 2px solid var(--color-brand-600);
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
+    }
+
+    .page-chrome__title {
+        @apply text-lg font-semibold tracking-tight text-slate-900;
+    }
+
+    .page-chrome__crumb {
+        @apply inline-flex items-center gap-1 text-[11.5px] text-slate-500 transition hover:text-brand-700;
+    }
+
+    /*
+     * Key facts about one record, ruled apart. The horizontal strip is what
+     * every HR system puts under a person's name, because it answers the four
+     * questions you would otherwise open three tabs to ask.
+     */
+    .meta-strip {
+        @apply flex flex-wrap items-stretch gap-x-0 gap-y-2;
+    }
+
+    .meta-strip__item {
+        @apply pr-5 pl-5 first:pl-0;
+        border-left: 1px solid var(--color-slate-200);
+    }
+
+    .meta-strip__item:first-child {
+        border-left: 0;
+    }
+
+    .meta-strip__label {
+        @apply block text-[10.5px] font-semibold text-slate-400 uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .meta-strip__value {
+        @apply mt-0.5 block text-[13px] font-medium text-slate-900;
+    }
+
+    /*
+     * The bar above a register: what you are looking at on the left, what you
+     * can do about it on the right. Attached to the panel rather than floating
+     * above it, so filters and their results read as one thing.
+     */
+    .toolbar {
+        @apply flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2;
+        background: color-mix(in oklab, var(--color-slate-100) 55%, #ffffff);
+    }
+
+    .toolbar__spacer {
+        @apply ml-auto;
+    }
+
+    .toolbar__count {
+        @apply text-[11.5px] whitespace-nowrap text-slate-500;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* The label is carried by the placeholder; the box is the label. */
+    .toolbar .form-label,
+    .toolbar .form-help {
+        @apply sr-only;
+    }
+
+    /*
+     * A section tab docked to the bottom edge of the page band. The active one
+     * is joined to the panel below it by sitting on the same white and cutting
+     * the band's own border — the oldest trick for saying "you are here", and
+     * still the clearest.
+     */
+    .page-tab {
+        @apply relative inline-flex items-center gap-1.5 whitespace-nowrap rounded-t
+               border border-transparent px-3 py-1.5 text-[12.5px] font-medium
+               text-slate-500 transition hover:text-slate-900;
+        bottom: -1px;
+    }
+
+    /*
+     * Two ways of saying "this one". The tab component toggles `aria-selected`
+     * from script, and a plain link in the page band carries `.is-active`;
+     * both have to light up or the highlight stops following the click.
+     */
+    .page-tab:hover:not(.is-active):not([aria-selected='true']) {
+        background: color-mix(in oklab, var(--color-slate-100) 60%, #ffffff);
+    }
+
+    .page-tab.is-active,
+    .page-tab[aria-selected='true'] {
+        @apply bg-white text-brand-700;
+        border-color: var(--color-slate-200);
+        border-bottom-color: #ffffff;
+    }
+
+    .page-tab__count {
+        @apply rounded bg-slate-100 px-1 py-px text-[10.5px] font-semibold text-slate-500 tabular-nums;
+    }
+
+    .page-tab.is-active .page-tab__count,
+    .page-tab[aria-selected='true'] .page-tab__count {
+        @apply bg-brand-50 text-brand-700;
+    }
+
+    /*
+     * Rendered markdown — a notification preview, a help guide or a letter —
+     * has no classes of its own, so the few tags it can produce are styled
+     * here.
+     */
+    .prose-preview > * + *,
+    .prose-letter > * + *,
+    .prose-help > * + * {
+        @apply mt-3;
+    }
+
+    .prose-preview h1,
+    .prose-letter h1,
+    .prose-help h1 {
+        @apply text-lg font-semibold text-slate-900;
+    }
+
+    .prose-preview h2,
+    .prose-letter h2,
+    .prose-help h2 {
+        @apply text-base font-semibold text-slate-900;
+    }
+
+    .prose-preview strong,
+    .prose-letter strong,
+    .prose-help strong {
+        @apply font-semibold text-slate-900;
+    }
+
+    .prose-preview a,
+    .prose-letter a,
+    .prose-help a {
+        @apply text-brand-600 underline underline-offset-2;
+    }
+
+    .prose-preview ul,
+    .prose-preview ol,
+    .prose-letter ul,
+    .prose-letter ol,
+    .prose-help ul,
+    .prose-help ol {
+        @apply ml-5 list-outside space-y-1;
+    }
+
+    .prose-preview ul,
+    .prose-letter ul,
+    .prose-help ul {
+        @apply list-disc;
+    }
+
+    .prose-preview ol,
+    .prose-letter ol,
+    .prose-help ol {
+        @apply list-decimal;
+    }
+
+    .prose-preview blockquote,
+    .prose-letter blockquote,
+    .prose-help blockquote {
+        @apply border-l-2 border-slate-200 pl-3 text-slate-600 italic;
+    }
+
+    .prose-preview code,
+    .prose-letter code,
+    .prose-help code {
+        @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-xs;
+    }
+
+    /*
+        The blocks GitHub-flavoured Markdown adds. The editor can now produce
+        all of these, so every surface that renders Markdown has to draw them:
+        a table saved in an announcement was otherwise printed as run-together
+        words.
+    */
+    .prose-preview table,
+    .prose-letter table,
+    .prose-help table {
+        @apply my-3 w-full border-collapse text-sm;
+    }
+
+    .prose-preview th,
+    .prose-preview td,
+    .prose-letter th,
+    .prose-letter td,
+    .prose-help th,
+    .prose-help td {
+        @apply border border-slate-200 px-2.5 py-1.5 text-left align-top;
+    }
+
+    .prose-preview th,
+    .prose-letter th,
+    .prose-help th {
+        @apply bg-slate-50 font-semibold text-slate-900;
+    }
+
+    /* Task lists carry their own bullet — a checkbox — so drop the disc. */
+    .prose-preview li:has(> input[type='checkbox']),
+    .prose-letter li:has(> input[type='checkbox']),
+    .prose-help li:has(> input[type='checkbox']) {
+        @apply -ml-5 list-none;
+    }
+
+    .prose-preview li > input[type='checkbox'],
+    .prose-letter li > input[type='checkbox'],
+    .prose-help li > input[type='checkbox'] {
+        @apply mr-1.5 align-middle accent-[var(--color-brand-600)];
+    }
+
+    .prose-preview pre,
+    .prose-letter pre,
+    .prose-help pre {
+        @apply my-3 overflow-x-auto rounded-md bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100;
+    }
+
+    .prose-preview pre code,
+    .prose-letter pre code,
+    .prose-help pre code {
+        @apply bg-transparent p-0 text-slate-100;
+    }
+
+    .prose-preview hr,
+    .prose-letter hr,
+    .prose-help hr {
+        @apply my-4 border-slate-200;
+    }
+
+    .prose-preview del,
+    .prose-letter del,
+    .prose-help del {
+        @apply text-slate-500 line-through;
+    }
+
+    .prose-help p,
+    .prose-help li {
+        @apply text-slate-600;
+    }
+
+    /* Rich text editor: a toolbar and an editable area styled like a field. */
+    .rich-text {
+        @apply rounded-lg border border-slate-300 bg-white shadow-xs transition
+               focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/30;
+    }
+
+    .rich-text-toolbar {
+        @apply flex flex-wrap items-center gap-0.5 border-b border-slate-200 px-2 py-1.5;
+    }
+
+    .rich-text-button {
+        @apply inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-xs font-medium
+               text-slate-600 transition hover:bg-slate-100 hover:text-slate-900
+               focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-hidden;
+    }
+
+    .rich-text-button[aria-pressed="true"] {
+        @apply bg-brand-50 text-brand-700;
+    }
+
+    .rich-text-button:disabled {
+        @apply cursor-not-allowed text-slate-300 hover:bg-transparent hover:text-slate-300;
+    }
+
+    .rich-text-button.is-wide {
+        @apply px-2 text-[11px];
+    }
+
+    .rich-text-button.is-danger {
+        @apply text-rose-600 hover:bg-rose-50 hover:text-rose-700;
+    }
+
+    .rich-text-divider {
+        @apply mx-1 h-4 w-px bg-slate-200;
+    }
+
+    /* The table row appears only with the cursor inside a table. */
+    .rich-text-table-tools {
+        @apply bg-slate-50;
+    }
+
+    .rich-text-tools-label {
+        @apply mr-1 text-[10px] font-semibold tracking-wide text-slate-400 uppercase;
+    }
+
+    .rich-text-content {
+        @apply min-h-72 px-3 py-2 text-sm text-slate-900 outline-none;
+    }
+
+    .rich-text-content p {
+        @apply text-slate-700;
+    }
+
+    /*
+        What the editor draws for the blocks Markdown can carry. The rendered
+        page has its own prose styles; these are only so the editor shows the
+        shape of what is being written.
+    */
+    .rich-text-content table {
+        @apply my-2 w-full table-fixed border-collapse text-sm;
+    }
+
+    .rich-text-content th,
+    .rich-text-content td {
+        @apply border border-slate-300 px-2 py-1 align-top;
+    }
+
+    .rich-text-content th {
+        @apply bg-slate-50 text-left font-semibold;
+    }
+
+    /* The cell the cursor is in, so a table is navigable. */
+    .rich-text-content .selectedCell {
+        @apply bg-brand-50;
+    }
+
+    .rich-text-content ul[data-type='taskList'] {
+        @apply list-none pl-0;
+    }
+
+    .rich-text-content ul[data-type='taskList'] li {
+        @apply flex items-start gap-2;
+    }
+
+    .rich-text-content ul[data-type='taskList'] li > label {
+        @apply mt-0.5 shrink-0;
+    }
+
+    .rich-text-content pre {
+        @apply my-2 overflow-x-auto rounded-md bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100;
+    }
+
+    .rich-text-content code {
+        @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-xs text-slate-800;
+    }
+
+    .rich-text-content pre code {
+        @apply bg-transparent p-0 text-slate-100;
+    }
+
+    .rich-text-content hr {
+        @apply my-3 border-slate-300;
+    }
+
+    .rich-text-content blockquote {
+        @apply border-l-2 border-slate-300 pl-3 text-slate-600 italic;
+    }
+
+    /* Before the editor mounts, or without JavaScript, the textarea itself is the field. */
+    .rich-text .rich-text-source {
+        @apply rounded-t-none border-0 shadow-none focus:ring-0;
+    }
+
+    .rich-text-ready .rich-text-source {
+        display: none;
+    }
+
+    /* A section linked from "On this page" clears the sticky header. */
+    .card[id] {
+        scroll-margin-top: 5rem;
+    }
+
+    .table-wrap {
+        @apply overflow-x-auto;
+    }
+
+    /*
+     * Long listings scroll inside the card with the header pinned, so the page
+     * stays roughly one screen and the column names never leave view.
+     */
+    .table-wrap.is-scrollable {
+        max-height: min(62vh, 640px);
+        @apply overflow-y-auto;
+    }
+
+    .table-wrap.is-scrollable thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        box-shadow: inset 0 -1px 0 var(--color-slate-200);
+    }
+
+    /*
+     * A grid, not a list. Ruled columns, banded rows and a tinted header are
+     * what tell somebody at a glance that this is a working register rather
+     * than an article — and they are what an HR or payroll operator reads all
+     * day. The rules are hairlines so the grid reads as structure, not cage.
+     */
+    .table {
+        @apply min-w-full text-[13px];
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table thead th {
+        @apply whitespace-nowrap px-3 py-2 text-left align-middle
+               text-[10.5px] font-semibold text-slate-500 uppercase;
+        letter-spacing: 0.06em;
+        background: var(--color-slate-100);
+        border-bottom: 1px solid var(--color-slate-300);
+        border-top: 1px solid var(--color-slate-200);
+    }
+
+    /* The hairline between columns. Not after the last one, and not on an
+       action column, which reads as part of the row rather than a field. */
+    .table thead th:not(:last-child),
+    .table tbody td:not(:last-child) {
+        border-right: 1px solid var(--color-slate-200);
+    }
+
+    .table tbody tr {
+        background: #ffffff;
+    }
+
+    .table tbody tr:nth-child(even) {
+        background: color-mix(in oklab, var(--color-slate-100) 45%, #ffffff);
+    }
+
+    .table tbody tr:hover {
+        background: var(--color-brand-50);
+    }
+
+    /*
+     * A cell does not wrap. A register is read by scanning down a column, and
+     * one long designation turning every row three lines tall destroys that —
+     * far better that a wide table scrolls sideways inside its panel, which is
+     * what `.table-wrap` is for. Opt back in with `class="wrap"` on the odd
+     * cell that really is prose.
+     */
+    .table tbody td {
+        @apply px-3 py-2 align-middle whitespace-nowrap text-slate-700;
+        border-bottom: 1px solid var(--color-slate-200);
+    }
+
+    .table td.wrap,
+    .table td.wrap * {
+        @apply whitespace-normal;
+    }
+
+    /* Keep one runaway value from pushing every other column off the screen. */
+    .table td.truncate-cell {
+        @apply max-w-[22rem] overflow-hidden text-ellipsis;
+    }
+
+    .table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .table tfoot td {
+        @apply px-3 py-2 align-middle font-semibold text-slate-900;
+        background: var(--color-slate-100);
+        border-top: 1px solid var(--color-slate-300);
+    }
+
+    /*
+     * A figure column. Right-aligned and in tabular figures so the decimal
+     * points line up down the column — the single thing that most separates a
+     * payroll register from a web page.
+     */
+    .table .num,
+    .table th.num,
+    .table td.num {
+        @apply text-right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* The last column of actions: never ruled, never wrapped, hard right. */
+    .table .row-actions {
+        @apply flex items-center justify-end gap-1 whitespace-nowrap;
+    }
+
+    .table .row-actions a,
+    .table .row-actions button {
+        @apply inline-flex size-7 items-center justify-center rounded text-slate-400 transition
+               hover:bg-white hover:text-brand-700 hover:shadow-xs
+               focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-hidden;
+    }
+
+    .table .row-actions .is-danger:hover {
+        @apply text-rose-600;
+    }
+
+    /* The primary cell of a row: the thing the row is about. */
+    .table .row-title {
+        @apply font-medium text-slate-900;
+    }
+
+    a.row-title:hover {
+        color: var(--color-brand-ink, var(--color-brand-700));
+    }
+
+    .table .row-sub {
+        @apply mt-0.5 block text-[11.5px] text-slate-500;
+    }
+
+    /*
+     * Month-wide report grids. A whole month cannot fit on a screen, so the
+     * days scroll sideways while the employee column and the date headings
+     * stay where they are — otherwise you lose track of whose row you are on
+     * by about the tenth of the month.
+     */
+    .grid-report {
+        @apply min-w-full text-sm;
+    }
+
+    .grid-report th,
+    .grid-report td {
+        @apply border-b border-slate-100 whitespace-nowrap;
+    }
+
+    .grid-report thead th {
+        @apply bg-slate-50 px-2 py-2 text-center text-xs font-semibold text-slate-500;
+    }
+
+    .grid-report tbody td {
+        @apply px-1.5 py-1.5 text-center;
+    }
+
+    /* On a phone the name column would take most of the screen, so it gives
+       some width back and lets more of the month show beside it. */
+    .grid-report .sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        @apply min-w-40 bg-white px-3 text-left sm:min-w-56 sm:px-4;
+    }
+
+    .grid-report thead .sticky-col {
+        z-index: 3;
+        @apply bg-slate-50;
+    }
+
+    .grid-report tbody tr:hover .sticky-col {
+        @apply bg-slate-50;
+    }
+
+    /* A cell says how the day went before anybody reads the figure in it. */
+    .cell {
+        @apply rounded-md px-2 py-1.5 text-xs font-medium tabular-nums;
+    }
+
+    .cell-full {
+        @apply bg-emerald-100 text-emerald-800;
+    }
+
+    .cell-partial {
+        @apply bg-amber-100 text-amber-800;
+    }
+
+    .cell-short {
+        @apply bg-rose-100 text-rose-700;
+    }
+
+    .cell-absent {
+        @apply bg-rose-50 text-rose-600;
+    }
+
+    .cell-off {
+        @apply bg-slate-100 text-slate-500;
+    }
+
+    .cell-holiday {
+        @apply bg-violet-50 text-violet-700;
+    }
+
+    .cell-leave {
+        @apply bg-sky-50 text-sky-700;
+    }
+
+    .cell-value {
+        @apply bg-slate-50 text-slate-700;
+    }
+
+    .cell-open {
+        @apply bg-brand-50 text-brand-700;
+    }
+
+    .cell-future {
+        @apply text-slate-300;
+    }
+}
+
+/* Printing a payslip should drop the chrome and keep the document. */
+@media print {
+    .no-print,
+    .hrms-toaster {
+        display: none !important;
+    }
+
+    .form-actions {
+        position: static;
+        border: 0;
+        box-shadow: none;
+        background: none;
+    }
+
+    body {
+        background: #fff;
+    }
+}
+
+
+/*
+    A figure cell, wherever it is drawn.
+
+    `.table .num` covers the registers; this covers a hand-rolled table or a
+    definition list that also holds money, so a column of amounts lines up on
+    its decimal point everywhere rather than only inside the register styles.
+*/
+.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/*
+    Sizing the toolbar's own controls.
+
+    Deliberately outside every @layer. A field component wraps itself in a
+    `w-full` div, and cascade layers beat specificity outright — a utility in
+    Tailwind's later `utilities` layer wins over any components-layer rule
+    however specific it is. Unlayered CSS outranks all of it, which is the one
+    way to say "in a toolbar, the toolbar decides the width" without reaching
+    for !important on every rule.
+*/
+.toolbar > div {
+    width: auto;
+}
+
+.toolbar .form-input,
+.toolbar .form-select {
+    height: 2rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 13px;
+    width: 10rem;
+}
+
+.toolbar .form-select {
+    padding-right: 1.75rem;
+}
+
+/* The search box is the one control worth more room than the rest. */
+.toolbar .form-input[placeholder] {
+    width: 15rem;
+}

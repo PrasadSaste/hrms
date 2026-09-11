@@ -1,0 +1,1587 @@
+{
+  "info": {
+    "name": "BySure HRMS API v1",
+    "_postman_id": "b7e1f0a2-3c4d-4e5f-9a10-hrms0000v1",
+    "description": "Every employee-facing feature of BySure HRMS, authenticated with Sanctum personal access tokens.\n\n**Getting started**\n\n1. Set the `base_url` variable to your host, without a trailing slash (e.g. `https://hrms.example.in`).\n2. Run **Authentication → Login**. Its test script stores the token in the collection variable `token`, and every other request sends it as a bearer token automatically.\n3. Tokens last 30 days. On a 401, run Login again.\n\n**Things worth knowing**\n\n- Attendance, your own leave and payslips are closed with a 403 until a new joiner's background verification clears.\n- Check-in and check-out require coordinates while *Require location to check in and out* is on. `GET /attendance/today` reports that as `location_required`.\n- A day can hold several punch pairs and several breaks.\n\nFull reference: docs/API.md in the repository.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Host only, no trailing slash and no /api/v1."
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Filled in by the Login request."
+    },
+    {
+      "key": "token_expires_at",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "arjun.sharma@beyondsure.example",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "Password123!",
+      "type": "string"
+    },
+    {
+      "key": "leave_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "payslip_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Issue, inspect and revoke personal access tokens.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "login"
+              ]
+            },
+            "description": "Public. Rate limited to 10 requests a minute per IP, and 5 failed attempts per email and IP before a 429.\n\nThe test script captures `token` into the collection, so run this first.\n\nReturns `must_change_password` for a joiner still on the password from their welcome email.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "email",
+                  "value": "{{email}}",
+                  "description": "Required.",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "description": "Required.",
+                  "type": "text"
+                },
+                {
+                  "key": "device_name",
+                  "value": "Postman",
+                  "description": "Optional, max 64 characters. Names the token so it can be revoked on its own.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Capture the token so every other request in this collection is signed in.",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('token', body.token);",
+                  "    pm.collectionVariables.set('token_expires_at', body.expires_at);",
+                  "    if (body.must_change_password) {",
+                  "        console.warn('This account must change its password before using the app.');",
+                  "    }",
+                  "}",
+                  "pm.test('Signed in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me"
+              ]
+            },
+            "description": "The signed-in user with their roles, permissions and employee record. Call it on launch to confirm the token still works and pick up a role change."
+          },
+          "response": []
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/change-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "change-password"
+              ]
+            },
+            "description": "Clears `must_change_password`. Existing tokens keep working.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "current_password",
+                  "value": "{{password}}",
+                  "description": "Required, must match.",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "NewPassword123!",
+                  "description": "Required, must meet the password policy.",
+                  "type": "text"
+                },
+                {
+                  "key": "password_confirmation",
+                  "value": "NewPassword123!",
+                  "description": "Must match `password`.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "logout"
+              ]
+            },
+            "description": "Revokes the token that made this call. Other devices stay signed in."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout everywhere",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/logout-all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "logout-all"
+              ]
+            },
+            "description": "Revokes every token this user holds, on every device."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "description": "A day is sessions and breaks. Punching in opens a session, punching out closes it, and either can happen several times a day. Every response returns the day's summary, rebuilt from those parts.\n\nClosed with a 403 until a new joiner's background verification clears.",
+      "item": [
+        {
+          "name": "Today",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance/today",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "today"
+              ]
+            },
+            "description": "Today's punch state. Read `location_required` before drawing the punch button, so the location permission can be asked for at a sensible moment."
+          },
+          "response": []
+        },
+        {
+          "name": "Check in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "check-in"
+              ]
+            },
+            "description": "Opens a session. 201 on success.\n\nRefused if a session is already open or a break is running. Coordinates are required while the organisation requires a location — the rule is enforced on the server, so a client that skips them is refused, not silently recorded.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "latitude",
+                  "value": "17.4401",
+                  "description": "Required when `location_required`. Between -90 and 90.",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "78.3489",
+                  "description": "Required when `location_required`. Between -180 and 180.",
+                  "type": "text"
+                },
+                {
+                  "key": "accuracy",
+                  "value": "18",
+                  "description": "Optional, metres, as the device reported it.",
+                  "type": "text"
+                },
+                {
+                  "key": "location",
+                  "value": "Hyderabad office",
+                  "description": "Optional label, max 255 characters.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Break reasons",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance/break-reasons",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "break-reasons"
+              ]
+            },
+            "description": "The picker's contents. Fetch this rather than hard-coding the list — the catalogue can grow without a client release."
+          },
+          "response": []
+        },
+        {
+          "name": "Start break",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance/break/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "break",
+                "start"
+              ]
+            },
+            "description": "Suspends the day with a reason attached. 201 on success. Refused if no session is open or a break is already running.\n\nEvery reason is deducted from working time; recording which one is what makes an hour of client visits readable in the reports.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "reason",
+                  "value": "lunch",
+                  "description": "Required. One of the keys from Break reasons: lunch, outside_meeting, client_visit, client_call, personal_call, team_meeting, product_training, paperwork, other.",
+                  "type": "text"
+                },
+                {
+                  "key": "comment",
+                  "value": "",
+                  "description": "Optional, max 500 characters. Worth filling in for `other`.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "End break",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance/break/end",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "break",
+                "end"
+              ]
+            },
+            "description": "Closes the running break and returns the day with `worked_minutes` recomputed. No body."
+          },
+          "response": []
+        },
+        {
+          "name": "Check out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance/check-out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "check-out"
+              ]
+            },
+            "description": "Closes the open session, and auto-closes a break somebody forgot to end. Refused if nothing is open.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "latitude",
+                  "value": "17.4401",
+                  "description": "Required when `location_required`.",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "78.3489",
+                  "description": "Required when `location_required`.",
+                  "type": "text"
+                },
+                {
+                  "key": "accuracy",
+                  "value": "18",
+                  "description": "Optional, metres.",
+                  "type": "text"
+                },
+                {
+                  "key": "location",
+                  "value": "Hyderabad office",
+                  "description": "Optional label.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance?from=2026-09-01&to=2026-09-30&per_page=31",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-09-01",
+                  "description": "Optional date."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-09-30",
+                  "description": "Optional date, on or after `from`."
+                },
+                {
+                  "key": "per_page",
+                  "value": "31",
+                  "description": "1 to 100. Defaults to 31."
+                }
+              ]
+            },
+            "description": "The caller's own records, newest day first."
+          },
+          "response": []
+        },
+        {
+          "name": "Monthly summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/attendance/summary?year=2026&month=9",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026",
+                  "description": "Defaults to this year."
+                },
+                {
+                  "key": "month",
+                  "value": "9",
+                  "description": "1 to 12. Defaults to this month."
+                }
+              ]
+            },
+            "description": "Totals plus a per-day breakdown. `kind` distinguishes a working day from a weekly off or a holiday, so a calendar can be shaded without guessing."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Leave",
+      "description": "Applying for and tracking one's own leave, and deciding other people's.\n\nOne's own leave waits for background verification to clear; deciding other people's does not.",
+      "item": [
+        {
+          "name": "Leave types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave/types",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave",
+                "types"
+              ]
+            },
+            "description": "Only the types this employee may apply for — gender, employment type and probation rules are applied server-side. Each carries `min_notice_days`, `max_consecutive_days`, `allow_half_day` and `requires_attachment`, which is everything needed to validate the form before submitting."
+          },
+          "response": []
+        },
+        {
+          "name": "Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave/balance?year=2026",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave",
+                "balance"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026",
+                  "description": "Defaults to this year."
+                }
+              ]
+            },
+            "description": "Allocation, carry-forward, used, pending and remaining per type. `remaining` already holds pending requests against the balance."
+          },
+          "response": []
+        },
+        {
+          "name": "My requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave?status=pending&year=2026&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Optional: pending, approved, rejected, cancelled."
+                },
+                {
+                  "key": "year",
+                  "value": "2026",
+                  "description": "Optional."
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": "Defaults to 20."
+                }
+              ]
+            },
+            "description": "The caller's own requests, newest first. `can_cancel` on each row says whether the cancel endpoint will accept it."
+          },
+          "response": []
+        },
+        {
+          "name": "Apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave"
+              ]
+            },
+            "description": "201 with the created request and its reference.\n\nRefused as a 422 for an overlap, an insufficient balance, too little notice, or a run past the type's consecutive-day limit.\n\nSent as multipart so an attachment can be included; drop the `attachment` row if there is none.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "leave_type_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "Required."
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-09-20",
+                  "type": "text",
+                  "description": "Required."
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-09-21",
+                  "type": "text",
+                  "description": "Required, on or after start_date."
+                },
+                {
+                  "key": "day_type",
+                  "value": "full_day",
+                  "type": "text",
+                  "description": "full_day, first_half or second_half."
+                },
+                {
+                  "key": "reason",
+                  "value": "Family function out of town.",
+                  "type": "text",
+                  "description": "Required, 5 to 1000 characters."
+                },
+                {
+                  "key": "contact_during_leave",
+                  "value": "+91 98xxxxxx01",
+                  "type": "text",
+                  "description": "Optional, max 64 characters."
+                },
+                {
+                  "key": "attachment",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional. Max 5 MB, pdf/jpg/jpeg/png. Required for some types.",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Show one",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave/{{leave_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave",
+                "{{leave_id}}"
+              ]
+            },
+            "description": "One request in full, with its type, approver and remarks."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave/{{leave_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave",
+                "{{leave_id}}",
+                "cancel"
+              ]
+            },
+            "description": "An approved future-dated request can still be cancelled; the days go back to the balance.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "cancel_reason",
+                  "value": "Plans changed.",
+                  "description": "Optional, max 500 characters.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pending approvals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave/pending-approvals?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave",
+                "pending-approvals"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": "Defaults to 20."
+                }
+              ]
+            },
+            "description": "Requires the `leave.approve` permission. Somebody without `leave.view-all` sees only their own reports and their own branch."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave/{{leave_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave",
+                "{{leave_id}}",
+                "approve"
+              ]
+            },
+            "description": "Approves and notifies the employee through the notification console.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "approver_remarks",
+                  "value": "Approved. Enjoy.",
+                  "description": "Optional, max 500 characters.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/leave/{{leave_id}}/reject",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leave",
+                "{{leave_id}}",
+                "reject"
+              ]
+            },
+            "description": "Remarks are required here — a rejection without a reason is unanswerable.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "approver_remarks",
+                  "value": "Two people are already away that week.",
+                  "description": "Required, 5 to 500 characters.",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payslips",
+      "description": "An employee sees their own published slips. Somebody with `payslips.view-all` sees everyone's.\n\nClosed with a 403 until background verification clears.",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/payslips?year=2026&per_page=12",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payslips"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026",
+                  "description": "Optional."
+                },
+                {
+                  "key": "employee_id",
+                  "value": "",
+                  "description": "Only honoured for a caller with payslips.view-all.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "12",
+                  "description": "Defaults to 12."
+                }
+              ]
+            },
+            "description": "Newest period first."
+          },
+          "response": []
+        },
+        {
+          "name": "Show one",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/payslips/{{payslip_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payslips",
+                "{{payslip_id}}"
+              ]
+            },
+            "description": "Adds the earnings and deductions line items alongside working days, paid days, loss of pay, gross, deductions, net pay and net pay in words."
+          },
+          "response": []
+        },
+        {
+          "name": "Download PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/payslips/{{payslip_id}}/download",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payslips",
+                "{{payslip_id}}",
+                "download"
+              ]
+            },
+            "description": "Returns the PDF as an attachment, rendered with the letterhead of the company that employed the person that month.\n\nSend the bearer token with the request — this is not a public link."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Letters",
+      "item": [
+        {
+          "name": "My letters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/letters?type=&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "letters"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Letters issued to the caller. With `letters.view`, everyone's — filter by `employee_id`. The body is left out of the list."
+          },
+          "response": []
+        },
+        {
+          "name": "Letter types issued",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/letters/types",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "letters",
+                "types"
+              ]
+            },
+            "description": "Only the types this account has actually been issued, each with a label. For a filter that offers what exists."
+          },
+          "response": []
+        },
+        {
+          "name": "One letter",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/letters/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "letters",
+                "1"
+              ]
+            },
+            "description": "Adds `body`: the frozen text as signed, never a fresh render of today's template."
+          },
+          "response": []
+        },
+        {
+          "name": "Download the PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/letters/1/download",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "letters",
+                "1",
+                "download"
+              ]
+            },
+            "description": "The PDF on the issuing company's letterhead, over the frozen signature. Bearer token required — the download_url is not a public link."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Background verification",
+      "item": [
+        {
+          "name": "My checklist",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/background-check",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "background-check"
+              ]
+            },
+            "description": "The caller's own case and its items. Each item carries a `fields` array describing the form to draw beside the file, so a client needs no copy of the requirement catalogue.\n\nDeliberately the only area not behind the verification gate: clearing verification is what it is for."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload a document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "PDF, JPG or PNG up to 10 MB. Optional once something has been uploaded."
+                },
+                {
+                  "key": "details[document_type]",
+                  "value": "Passport",
+                  "type": "text"
+                },
+                {
+                  "key": "details[document_number]",
+                  "value": "X1234567",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/background-check/items/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "background-check",
+                "items",
+                "1"
+              ]
+            },
+            "description": "Upload or replace one document with the details asked for beside it. Returns the whole case back, so no second call is needed to re-render. 403 once submitted."
+          },
+          "response": []
+        },
+        {
+          "name": "Submit to HR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/background-check/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "background-check",
+                "submit"
+              ]
+            },
+            "description": "Hands the set over. 422 with a `submit` error if a required document is still missing."
+          },
+          "response": []
+        },
+        {
+          "name": "Read back a document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/background-check/items/1/document",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "background-check",
+                "items",
+                "1",
+                "document"
+              ]
+            },
+            "description": "A document one uploaded oneself, streamed from the private disk. Never reachable by URL."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Self Assistance guides",
+      "item": [
+        {
+          "name": "All guides",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/help?q=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "help"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Every guide the caller may read, grouped by section. `q` searches titles, summaries and bodies.\n\nA guide to a screen the account cannot open is not returned at all, so nobody learns a screen exists from the help index."
+          },
+          "response": []
+        },
+        {
+          "name": "One guide",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/help/applying-for-leave",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "help",
+                "applying-for-leave"
+              ]
+            },
+            "description": "By slug. Carries the body as both `body` (Markdown) and `body_html` (rendered)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Directory and home screen",
+      "description": "Everything else a mobile client needs.",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard"
+              ]
+            },
+            "description": "One call for a home screen: today's punch state, the month's totals, pending leave count, balances, the latest payslip, upcoming holidays, recent announcements and this week's birthdays.\n\n`org` is populated only for roles that may see organisation-wide figures."
+          },
+          "response": []
+        },
+        {
+          "name": "Employees",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees?per_page=25",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Name, code or email.",
+                  "disabled": true
+                },
+                {
+                  "key": "branch_id",
+                  "value": "",
+                  "description": "Optional.",
+                  "disabled": true
+                },
+                {
+                  "key": "department_id",
+                  "value": "",
+                  "description": "Optional.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "25",
+                  "description": "Defaults to 25."
+                }
+              ]
+            },
+            "description": "The colleague directory, already limited to what the caller may see — a branch manager never receives another branch."
+          },
+          "response": []
+        },
+        {
+          "name": "Holidays",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/holidays?year=2026",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "holidays"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026",
+                  "description": "Defaults to this year."
+                }
+              ]
+            },
+            "description": "Scoped to the caller's branch, so a branch-specific holiday only reaches the people it applies to."
+          },
+          "response": []
+        },
+        {
+          "name": "Announcements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/announcements?per_page=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "announcements"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Defaults to 10."
+                }
+              ]
+            },
+            "description": "Published announcements visible to the caller, pinned first."
+          },
+          "response": []
+        },
+        {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": "Defaults to 20."
+                }
+              ]
+            },
+            "description": "The in-app feed with `unread_count` for the badge. Each row's `data` carries the rendered title, message, icon and a deep-linkable url."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark notification read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/{{notification_id}}/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            },
+            "description": "The id is the notification's UUID from the list above."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
