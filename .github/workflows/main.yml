@@ -1,1 +1,59 @@
+name:bysure HRMS CICD 
+on:
+  pull_request:
+    branches:
+      -main
+  push:
+    branches:
+      -main
+permissions:
+  contents: read
 
+jobs:
+  CI:
+    name:Application Validation
+    runs-on:ubuntu-latest
+
+    steps:
+    #1 Checkout
+     - name:checkout SourceCode
+       uses:actions/checkout@v4
+    #2 Php Setup
+     - name: Setup PHP
+       uses: shivammathur/setup-php@v2
+       with:
+          php-version: '8.4'
+          extensions: mbstring, bcmath, pdo_mysql
+          coverage: none
+     #3Validate
+     -  name: Validate Composer
+        run: composer validate --strict
+
+      # 4. Install dependencies
+     - name: Install Composer dependencies
+        run: |
+          composer install \
+            --prefer-dist \
+            --no-interaction \
+            --no-progress
+
+      # 5. Laravel environment
+     - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # 6. PHP syntax check
+     - name: PHP Syntax Check
+        run: |
+          find app config routes database tests \
+            -type f -name "*.php" \
+            -print0 | xargs -0 -n1 php -l
+
+      # 7. Laravel application check
+     - name: Laravel Application Check
+        run: php artisan about
+
+      # 8. Run tests
+     - name: Run Laravel Tests
+        run: php artisan test
