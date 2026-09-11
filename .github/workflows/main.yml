@@ -64,7 +64,7 @@ jobs:
       # 8. Run tests
       - name: Run Laravel Tests
         run: php artisan test
- mysql:
+  mysql:
     name: Migrations on MySQL 8
     runs-on: ubuntu-latest
 
@@ -89,7 +89,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pdo_mysql, intl, gd
           coverage: none
 
@@ -125,7 +125,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24' 
 
       - name: Install and build
         run: |
