@@ -14,12 +14,36 @@ permissions:
 
 jobs:
 
+  assets:
+    name: Build assets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+
   tests:
     name: PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
+    needs: assets
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         php: ['8.4']
 
@@ -43,8 +67,11 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+
       - name: Run the test suite
         run: php artisan test
+
+
   mysql:
     name: Migrations on MySQL 8
     runs-on: ubuntu-latest
@@ -56,12 +83,14 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: hrms_bysure
-        ports: ['3306:3306']
+        ports:
+          - '3306:3306'
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,6 +111,7 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+
       - name: Migrate and seed against MySQL
         env:
           DB_CONNECTION: mysql
@@ -93,23 +123,6 @@ jobs:
           SEED_DEMO_DATA: 'true'
         run: |
           php artisan migrate:fresh --seed --force
-          
-  assets:
-    name: Build assets
-    runs-on: ubuntu-latest
-   
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24' 
-
       - name: Install and build
         run: |
           npm ci
