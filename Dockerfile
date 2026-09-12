@@ -28,20 +28,12 @@ RUN apt-get update && apt-get install -y \
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy application
-COPY . .
+# Copy Composer files
+COPY composer.json composer.lock ./
 
-# Create Laravel directories
-RUN mkdir -p \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    storage/logs \
-    bootstrap/cache
-
-# Laravel needs an APP_KEY when Artisan boots
-RUN cp .env.example .env \
-    && php artisan key:generate --force
+# Copy example environment BEFORE composer install.
+# This prevents Laravel package:discover from failing because .env is missing.
+COPY .env.example .env
 
 # Install PHP dependencies
 RUN composer install \
@@ -50,10 +42,25 @@ RUN composer install \
     --prefer-dist \
     --optimize-autoloader
 
-# Laravel permissions
-RUN chown -R www-data:www-data \
-    storage \
-    bootstrap/cache
+# Copy application source
+COPY . .
+
+# Make sure .env still exists
+RUN test -f .env || cp .env.example .env
+
+# Laravel writable directories
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache \
+    && chown -R www-data:www-data \
+        storage \
+        bootstrap/cache
+
+# Generate application key
+RUN php artisan key:generate --force
 
 # Cache Laravel configuration
 RUN php artisan config:cache \
