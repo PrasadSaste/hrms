@@ -2,8 +2,8 @@ name: Tests
 
 on:
   push:
-    branches: 
-    - main
+    branches:
+      - main
   pull_request:
 
 permissions:
@@ -34,6 +34,7 @@ jobs:
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -43,10 +44,12 @@ jobs:
         run: |
           npm install
           npm run build
+
       - name: Prepare environment
         run: |
           cp .env.example .env
           php artisan key:generate
+
       - name: Run the test suite
         run: php artisan test
 
@@ -60,12 +63,14 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: hrms_bysure
-        ports: ['3306:3306']
+        ports:
+          - '3306:3306'
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,6 +86,7 @@ jobs:
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -90,10 +96,12 @@ jobs:
         run: |
           npm install
           npm run build
+
       - name: Prepare environment
         run: |
           cp .env.example .env
           php artisan key:generate
+
       - name: Migrate and seed against MySQL
         env:
           DB_CONNECTION: mysql
@@ -105,7 +113,7 @@ jobs:
           SEED_DEMO_DATA: 'true'
         run: |
           php artisan migrate:fresh --seed --force
-          
+
   assets:
     name: Build assets
     runs-on: ubuntu-latest
@@ -125,27 +133,27 @@ jobs:
         run: |
           npm ci
           npm run build
+
   sonarqube:
+    name: SonarQube Analysis
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-       
           fetch-depth: 0
 
-      # Triggering SonarQube analysis as results of it are required by Quality Gate check.
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@master
         with:
-        projectBaseDir: .
-    # Pass the organization variable to the scanner arguments
-         args: >
-          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
-   
       - name: SonarQube Quality Gate check
         id: sonarqube-quality-gate-check
         uses: sonarsource/sonarqube-quality-gate-action@master
@@ -155,8 +163,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
-      
-      - name: "Example show SonarQube Quality Gate Status value"
-        run: echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
-
-  
+      - name: Show SonarQube Quality Gate Status
+        run: |
+          echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
