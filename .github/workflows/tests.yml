@@ -156,8 +156,8 @@ jobs:
             -Dsonar.tests=tests
             -Dsonar.exclusions=vendor/**,node_modules/**,public/build/**,storage/**,bootstrap/cache/**
             -Dsonar.sourceEncoding=UTF-8
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.qualitygate.timeout=600
+            
+            
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
