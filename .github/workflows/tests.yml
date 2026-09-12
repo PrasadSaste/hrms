@@ -136,6 +136,11 @@ jobs:
       # Triggering SonarQube analysis as results of it are required by Quality Gate check.
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@master
+        with:
+        projectBaseDir: .
+    # Pass the organization variable to the scanner arguments
+         args: >
+          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
