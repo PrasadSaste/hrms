@@ -2,7 +2,7 @@ FROM php:8.4-cli
 
 WORKDIR /var/www/html
 
-# System dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -28,11 +28,19 @@ RUN apt-get update && apt-get install -y \
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy files required by Composer/Laravel package discovery
-COPY composer.json composer.lock artisan .env.example ./
+# Copy the complete Laravel application
+COPY . .
 
-# Create temporary environment
+# Create build-time environment
 RUN cp .env.example .env
+
+# Create required Laravel directories
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache
 
 # Install PHP dependencies
 RUN composer install \
@@ -41,27 +49,18 @@ RUN composer install \
     --prefer-dist \
     --optimize-autoloader
 
-# Copy application source
-COPY . .
-
-# Ensure writable Laravel directories exist
-RUN mkdir -p \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    storage/logs \
-    bootstrap/cache \
-    && chown -R www-data:www-data \
-        storage \
-        bootstrap/cache
-
-# Generate application key
+# Generate Laravel application key
 RUN php artisan key:generate --force
 
 # Cache Laravel configuration
 RUN php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
+
+# Permissions
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
 
 EXPOSE 8000
 
