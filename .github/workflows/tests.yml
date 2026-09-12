@@ -138,7 +138,7 @@ jobs:
         uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
    
       - name: SonarQube Quality Gate check
@@ -148,7 +148,7 @@ jobs:
           pollingTimeoutSec: 600
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} #OPTIONAL
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }} #OPTIONAL
 
       
       - name: "Example show SonarQube Quality Gate Status value"
