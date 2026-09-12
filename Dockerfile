@@ -2,7 +2,7 @@ FROM php:8.4-cli
 
 WORKDIR /var/www/html
 
-# Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -25,27 +25,37 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy Composer files first for Docker layer caching
-COPY composer.json composer.lock ./
+# Copy application
+COPY . .
 
+# Create Laravel directories
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache
+
+# Laravel needs an APP_KEY when Artisan boots
+RUN cp .env.example .env \
+    && php artisan key:generate --force
+
+# Install PHP dependencies
 RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
     --optimize-autoloader
 
-# Copy application
-COPY . .
-
 # Laravel permissions
 RUN chown -R www-data:www-data \
     storage \
     bootstrap/cache
 
-# Laravel optimization
+# Cache Laravel configuration
 RUN php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
@@ -53,4 +63,3 @@ RUN php artisan config:cache \
 EXPOSE 8000
 
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
-
