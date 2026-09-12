@@ -28,12 +28,11 @@ RUN apt-get update && apt-get install -y \
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy Composer files
-COPY composer.json composer.lock ./
+# Copy files required by Composer/Laravel package discovery
+COPY composer.json composer.lock artisan .env.example ./
 
-# Copy example environment BEFORE composer install.
-# This prevents Laravel package:discover from failing because .env is missing.
-COPY .env.example .env
+# Create temporary environment
+RUN cp .env.example .env
 
 # Install PHP dependencies
 RUN composer install \
@@ -45,10 +44,7 @@ RUN composer install \
 # Copy application source
 COPY . .
 
-# Make sure .env still exists
-RUN test -f .env || cp .env.example .env
-
-# Laravel writable directories
+# Ensure writable Laravel directories exist
 RUN mkdir -p \
     storage/framework/cache \
     storage/framework/sessions \
