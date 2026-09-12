@@ -175,7 +175,7 @@ jobs:
       AWS_REGION: ap-south-1
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REGISTRY: ${{ secrets.REGISTRY }}
-      ECR_REPOSITORY: hrms
+      ECR_REPOSITORY: bysurehrms
 
     steps:
       - name: Checkout code
