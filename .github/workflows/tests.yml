@@ -11,6 +11,7 @@ on:
 
 
 env:
+  AWS_REGION: ap-south-1
   ECR_REPOSITORY: bysurehrms
 
 
@@ -23,6 +24,7 @@ jobs:
   # ============================================================
   # 1. PHP TESTS
   # ============================================================
+
   tests:
     name: PHP Tests
     runs-on: ubuntu-latest
@@ -33,6 +35,7 @@ jobs:
         php: ['8.4']
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -43,7 +46,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, pdo_mysql, intl, gd
+          extensions: dom,curl,libxml,mbstring,zip,pcntl,pdo,sqlite,pdo_sqlite,pdo_mysql,intl,gd
           coverage: none
 
       - name: Install Composer dependencies
@@ -77,12 +80,15 @@ jobs:
   # ============================================================
   # 2. MYSQL MIGRATION TEST
   # ============================================================
+
   mysql:
     name: MySQL 8 Migration Test
     runs-on: ubuntu-latest
+
     needs: tests
 
     services:
+
       mysql:
         image: mysql:8.0
 
@@ -100,6 +106,7 @@ jobs:
           --health-retries=10
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -110,7 +117,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pdo_mysql, intl, gd
+          extensions: dom,curl,libxml,mbstring,zip,pcntl,pdo,pdo_mysql,intl,gd
           coverage: none
 
       - name: Install Composer dependencies
@@ -142,12 +149,15 @@ jobs:
   # ============================================================
   # 3. FRONTEND BUILD
   # ============================================================
+
   assets:
     name: Build Frontend Assets
     runs-on: ubuntu-latest
+
     needs: tests
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -166,6 +176,10 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Verify Vite manifest
+        run: |
+          test -f public/build/manifest.json
+
       - name: Upload frontend assets
         uses: actions/upload-artifact@v4
         with:
@@ -174,10 +188,11 @@ jobs:
 
 
   # ============================================================
-  # 4. SONARQUBE ANALYSIS
+  # 4. LARASTAN STATIC ANALYSIS
   # ============================================================
-  sonarqube:
-    name: SonarQube Analysis
+
+  larastan:
+    name: Larastan Analysis
     runs-on: ubuntu-latest
 
     needs:
@@ -186,6 +201,7 @@ jobs:
       - assets
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -196,7 +212,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pdo_mysql, intl, gd
+          extensions: dom,curl,libxml,mbstring,zip,pcntl,pdo,pdo_mysql,intl,gd
           coverage: none
 
       - name: Install Composer dependencies
@@ -206,32 +222,55 @@ jobs:
             --no-interaction \
             --no-progress
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-
-      - name: Install NPM dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
-
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Run Larastan
+        run: vendor/bin/phpstan analyse
 
 
   # ============================================================
-  # 5. TRIVY SECURITY SCAN
+  # 5. PSALM STATIC ANALYSIS
   # ============================================================
+
+  psalm:
+    name: Psalm Analysis
+    runs-on: ubuntu-latest
+
+    needs:
+      - tests
+      - mysql
+      - assets
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom,curl,libxml,mbstring,zip,pcntl,pdo,pdo_mysql,intl,gd
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: |
+          composer install \
+            --prefer-dist \
+            --no-interaction \
+            --no-progress
+
+      - name: Run Psalm
+        run: vendor/bin/psalm
+
+
+  # ============================================================
+  # 6. TRIVY FILESYSTEM SECURITY SCAN
+  # ============================================================
+
   security-scan:
-    name: Trivy Security Scan
+    name: Trivy Filesystem Security Scan
     runs-on: ubuntu-latest
 
     needs:
@@ -239,6 +278,7 @@ jobs:
       - assets
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -246,7 +286,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -262,6 +302,3 @@ jobs:
         with:
           name: trivy-scan-results
           path: trivy-results.json
-
-
- 
